@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-paper text-body font-sans antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Dinheiro em coluna precisa de numeral tabular para alinhar. */
+  .tnum { font-variant-numeric: tabular-nums; }
+}
