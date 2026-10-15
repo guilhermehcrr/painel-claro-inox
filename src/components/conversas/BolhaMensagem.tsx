@@ -1,4 +1,5 @@
-import { Bot, FileText, Image, MapPin, Mic, Sticker, User, Video } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Bot, Check, Clock, FileText, Image, MapPin, Mic, Sticker, User, Video } from 'lucide-react'
 import type { Mensagem } from '@/lib/types'
 import { hora } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -61,6 +62,37 @@ function Conteudo({ m }: { m: Mensagem }) {
   )
 }
 
+/** Tempo para o WhatsApp confirmar o envio antes de o painel avisar. */
+const ESPERA_MS = 90_000
+
+/**
+ * ✓ = o WhatsApp confirmou que a mensagem saiu.
+ * Relógio = enviando. Aviso = o WhatsApp não confirmou (só para as do Ramon,
+ * que são as que ele precisa saber se chegaram).
+ */
+function Situacao({ m }: { m: Mensagem }) {
+  const pendente = m.direcao === 'saida' && !m.importada && !m.wa_id && m.autor === 'ramon'
+  const idade = Date.now() - new Date(m.criado_em).getTime()
+  const [, redesenhar] = useState(0)
+
+  useEffect(() => {
+    if (!pendente || idade >= ESPERA_MS) return
+    const t = setTimeout(() => redesenhar((n) => n + 1), ESPERA_MS - idade + 500)
+    return () => clearTimeout(t)
+  }, [pendente, idade])
+
+  if (m.direcao !== 'saida' || m.importada) return null
+  if (m.wa_id) return <Check className="h-3 w-3" strokeWidth={2.25} aria-label="Enviada" />
+  if (!pendente) return null
+  if (idade < ESPERA_MS) return <Clock className="h-3 w-3" strokeWidth={2} aria-label="Enviando" />
+  return (
+    <span className="flex items-center gap-0.5 font-medium text-warn">
+      <AlertTriangle className="h-3 w-3" strokeWidth={2} />
+      não confirmada, confira no celular
+    </span>
+  )
+}
+
 export function BolhaMensagem({ m }: { m: Mensagem }) {
   const minha = m.direcao === 'saida'
   return (
@@ -85,7 +117,10 @@ export function BolhaMensagem({ m }: { m: Mensagem }) {
           </div>
         )}
         <Conteudo m={m} />
-        <div className="tnum mt-0.5 text-right text-[10px] text-faint">{hora(m.criado_em)}</div>
+        <div className="tnum mt-0.5 flex items-center justify-end gap-1 text-[10px] text-faint">
+          {hora(m.criado_em)}
+          <Situacao m={m} />
+        </div>
       </div>
     </div>
   )
