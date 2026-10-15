@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { FileText, LogOut, RefreshCw, Users } from 'lucide-react'
+import { FileText, LogOut, MessagesSquare, RefreshCw, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useOrcamentos } from '@/hooks/useOrcamentos'
+import { useConversas } from '@/hooks/useConversas'
 import { OrcamentoCard } from '@/components/OrcamentoCard'
 import { Usuarios } from '@/components/Usuarios'
+import { Conversas } from '@/components/conversas/Conversas'
 import { Login } from '@/components/Login'
 import { DefinirSenha, EsqueciSenha } from '@/components/Senha'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type Aba = 'orcamentos' | 'usuarios'
+type Aba = 'orcamentos' | 'conversas' | 'usuarios'
 
 function Orcamentos() {
   const { itens, carregando, erro, decidir } = useOrcamentos()
@@ -42,17 +44,26 @@ function Painel({ sessao }: { sessao: Session }) {
   const [aba, setAba] = useState<Aba>('orcamentos')
   const [girando, setGirando] = useState(false)
   const { itens, carregar } = useOrcamentos()
+  const conversas = useConversas()
 
   async function atualizar() {
     setGirando(true)
-    await carregar()
+    await (aba === 'conversas' ? conversas.recarregar() : carregar())
     setTimeout(() => setGirando(false), 400)
   }
 
+  const abas = [
+    ['orcamentos', 'Aprovações', FileText, itens.length],
+    ['conversas', 'Conversas', MessagesSquare, conversas.naoLidas],
+    ...(ehAdmin ? ([['usuarios', 'Usuários', Users, 0]] as const) : []),
+  ] as const
+
+  const largura = aba === 'conversas' ? 'max-w-6xl' : 'max-w-2xl'
+
   return (
-    <>
-      <header className="sticky top-0 z-10 border-b border-hair bg-card">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+    <div className="flex h-dvh flex-col">
+      <header className="shrink-0 border-b border-hair bg-card">
+        <div className={cn('mx-auto flex items-center justify-between gap-3 px-4 py-3', largura)}>
           <div className="min-w-0">
             <div className="font-semibold tracking-tight text-ink">
               Claro <span className="text-indigo">Inox</span>
@@ -63,7 +74,7 @@ function Painel({ sessao }: { sessao: Session }) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {aba === 'orcamentos' && (
+            {aba !== 'usuarios' && (
               <Button variant="ghost" size="icon" onClick={atualizar} aria-label="Atualizar">
                 <RefreshCw
                   className={cn('h-4 w-4', girando && 'animate-spin')}
@@ -82,35 +93,49 @@ function Painel({ sessao }: { sessao: Session }) {
           </div>
         </div>
 
-        {ehAdmin && (
-          <div className="mx-auto flex max-w-2xl gap-1 px-3 pb-1">
-            {(
-              [
-                ['orcamentos', 'Orçamentos', FileText, itens.length],
-                ['usuarios', 'Usuários', Users, 0],
-              ] as const
-            ).map(([id, rotulo, Icone, qtd]) => (
-              <button
-                key={id}
-                onClick={() => setAba(id)}
-                className={cn(
-                  'flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] transition-colors',
-                  aba === id
-                    ? 'border-indigo text-indigo'
-                    : 'border-transparent text-muted hover:text-body',
-                )}
-              >
-                <Icone className="h-4 w-4" strokeWidth={1.75} />
-                {rotulo}
-                {qtd > 0 && <span className="tnum font-mono text-[12px]">{qtd}</span>}
-              </button>
-            ))}
-          </div>
-        )}
+        <nav className={cn('mx-auto flex gap-1 overflow-x-auto px-3', largura)}>
+          {abas.map(([id, rotulo, Icone, qtd]) => (
+            <button
+              key={id}
+              onClick={() => setAba(id)}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] transition-colors',
+                aba === id
+                  ? 'border-indigo text-indigo'
+                  : 'border-transparent text-muted hover:text-body',
+              )}
+            >
+              <Icone className="h-4 w-4" strokeWidth={1.75} />
+              {rotulo}
+              {qtd > 0 && (
+                <span
+                  className={cn(
+                    'tnum rounded-full px-1.5 font-mono text-[11px]',
+                    id === 'conversas' ? 'bg-ok text-white' : '',
+                  )}
+                >
+                  {qtd}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      {aba === 'orcamentos' ? <Orcamentos /> : <Usuarios meuId={sessao.user.id} />}
-    </>
+      {aba === 'conversas' ? (
+        <main className="min-h-0 flex-1">
+          <Conversas
+            conversas={conversas.conversas}
+            carregando={conversas.carregando}
+            erro={conversas.erro}
+          />
+        </main>
+      ) : (
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          {aba === 'orcamentos' ? <Orcamentos /> : <Usuarios meuId={sessao.user.id} />}
+        </main>
+      )}
+    </div>
   )
 }
 

@@ -43,11 +43,13 @@ export function useOrcamentos() {
 
       if (error) throw new Error(error.message)
 
-      if (o.telefone) {
+      // Rejeitar não mexe na IA: o cliente pode ter outro orçamento em aberto.
+      // Para pausar a IA de um cliente, use o botão na tela de Conversas.
+      if (o.telefone && status === 'aprovado') {
         await supabase
           .from('leads')
           .update({
-            status: status === 'aprovado' ? 'orcamento_enviado' : 'com_ramon',
+            status: 'orcamento_enviado',
             atualizado_em: new Date().toISOString(),
           })
           .eq('telefone', o.telefone)

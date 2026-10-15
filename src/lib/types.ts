@@ -82,3 +82,36 @@ export interface Orcamento {
   detalhe: DetalheOrcamento | null
   criado_em: string
 }
+
+// ---- Conversas (tela estilo WhatsApp Web) ----------------------------------
+
+export type AutorMensagem = 'cliente' | 'ia' | 'ramon'
+export type TipoMensagem =
+  | 'texto' | 'audio' | 'imagem' | 'video' | 'documento'
+  | 'figurinha' | 'localizacao' | 'contato' | 'outro'
+
+export interface Mensagem {
+  id: number
+  telefone: string
+  direcao: 'entrada' | 'saida'
+  autor: AutorMensagem
+  tipo: TipoMensagem
+  texto: string | null
+  arquivo: string | null
+  midia_url: string | null
+  wa_id: string | null
+  importada: boolean
+  criado_em: string
+}
+
+export interface Conversa {
+  telefone: string
+  nome: string | null
+  status: string
+  ia_ligada: boolean
+  ultima_texto: string | null
+  ultima_tipo: TipoMensagem
+  ultima_autor: AutorMensagem
+  ultima_em: string
+  nao_lidas: number
+}
