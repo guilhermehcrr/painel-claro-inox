@@ -8,6 +8,20 @@
     @apply bg-paper text-body font-sans antialiased;
     padding-bottom: env(safe-area-inset-bottom);
   }
-  /* Dinheiro em coluna precisa de numeral tabular para alinhar. */
+  /* Dinheiro e quantidade em coluna precisam de numeral tabular para alinhar. */
   .tnum { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid theme('colors.indigo.DEFAULT'); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+}
+
+/* Impressão da ordem de produção: só o bloco .so-imprimir vai para o papel. */
+.so-imprimir { display: none; }
+@media print {
+  @page { size: A4; margin: 10mm 12mm; }
+  body { background: #fff; padding: 0; }
+  body * { visibility: hidden; }
+  .so-imprimir, .so-imprimir * { visibility: visible; }
+  .so-imprimir { display: block; position: absolute; inset: 0 auto auto 0; width: 100%; }
 }

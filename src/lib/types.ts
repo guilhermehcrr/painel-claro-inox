@@ -21,6 +21,7 @@ export interface ResumoOrcamento {
   prazo_fabricacao_dias_uteis: number
   prazo_envio: string
   frete_pendente?: boolean
+  itens?: string[]
 }
 
 export interface ItemMaterial {
@@ -68,6 +69,16 @@ export interface DetalheOrcamento {
     peso_kg: number | null
   }
   cotacao_frete?: CotacaoFrete | null
+  pecas?: PecaOrcamento[]
+}
+
+export interface PecaOrcamento {
+  tipo: string
+  nome: string
+  descricao?: string | string[]
+  quantidade: number
+  preco_unitario?: number
+  preco_exibido?: number
 }
 
 export interface Orcamento {
@@ -81,11 +92,19 @@ export interface Orcamento {
   resumo: ResumoOrcamento | null
   detalhe: DetalheOrcamento | null
   criado_em: string
+  numero_proposta?: string | null
+  aprovado_em?: string | null
+  enviado_em?: string | null
+  decidido_por_nome?: string | null
+  pdf_url?: string | null
+  a_mm?: number | null
+  b_mm?: number | null
+  c_mm?: number | null
 }
 
 // ---- Conversas (tela estilo WhatsApp Web) ----------------------------------
 
-export type AutorMensagem = 'cliente' | 'ia' | 'ramon'
+export type AutorMensagem = 'cliente' | 'ia' | 'ramon' | 'sistema'
 export type TipoMensagem =
   | 'texto' | 'audio' | 'imagem' | 'video' | 'documento'
   | 'figurinha' | 'localizacao' | 'contato' | 'outro'
@@ -114,4 +133,80 @@ export interface Conversa {
   ultima_autor: AutorMensagem
   ultima_em: string
   nao_lidas: number
+}
+
+// ---- Produção ----------------------------------------------------------------
+
+export type Estagio = 'aguardando' | 'em_producao' | 'pronto' | 'expedido' | 'entregue' | 'cancelado'
+
+export interface Pedido {
+  id: number
+  numero: string
+  orcamento_id: number | null
+  telefone: string | null
+  nome_cliente: string | null
+  cep: string | null
+  estagio: Estagio
+  valor: number
+  data_entrega: string | null
+  codigo_rastreio: string | null
+  observacoes: string | null
+  resumo: ResumoOrcamento | null
+  detalhe: DetalheOrcamento | null
+  a_mm: number | null
+  b_mm: number | null
+  c_mm: number | null
+  estagio_em: string
+  criado_por_nome: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export interface PedidoEvento {
+  id: number
+  pedido_id: number
+  tipo: 'criado' | 'estagio' | 'data_entrega' | 'valor' | 'observacoes'
+  de: string | null
+  para: string | null
+  mensagem_id: number | null
+  feito_por_nome: string | null
+  criado_em: string
+}
+
+// ---- Caixa ---------------------------------------------------------------------
+
+export type TipoLancamento = 'entrada' | 'saida'
+
+export interface Categoria {
+  id: number
+  nome: string
+  tipo: TipoLancamento
+  ativa: boolean
+}
+
+export interface Lancamento {
+  id: number
+  tipo: TipoLancamento
+  data: string
+  valor: number
+  categoria_id: number
+  descricao: string | null
+  pedido_id: number | null
+  criado_por_nome: string | null
+  criado_em: string
+  excluido_em: string | null
+  excluido_por_nome: string | null
+}
+
+export interface AReceber {
+  id: number
+  numero: string
+  nome_cliente: string | null
+  telefone: string | null
+  estagio: Estagio
+  valor: number
+  recebido: number
+  saldo: number
+  ultimo_pagamento: string | null
+  criado_em: string
 }

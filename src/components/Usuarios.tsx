@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import type { Papel } from '@/lib/types'
 
 const campo =
-  'h-11 w-full border border-hair bg-card px-3 text-[15px] outline-none focus:border-indigo'
+  'h-11 w-full rounded-md border border-hair bg-card px-3 text-[15px] outline-none focus:border-indigo'
 
 export function Usuarios({ meuId }: { meuId: string }) {
   const { itens, carregando, erro, criar, trocarPapel, remover } = useUsuarios()
@@ -30,7 +30,7 @@ export function Usuarios({ meuId }: { meuId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-4">
+    <div>
       {erro && (
         <div className="mb-4 border border-warn bg-warn-tint p-4 text-[13px] text-warn">{erro}</div>
       )}
@@ -84,8 +84,8 @@ export function Usuarios({ meuId }: { meuId: string }) {
                 value={form.papel}
                 onChange={(e) => setForm({ ...form, papel: e.target.value as Papel })}
               >
-                <option value="operador">Operador, só aprova orçamentos</option>
-                <option value="admin">Admin, também gerencia usuários</option>
+                <option value="operador">Operador: orçamentos, conversas e produção</option>
+                <option value="admin">Admin: tudo, mais caixa e usuários</option>
               </select>
             </div>
 

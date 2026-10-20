@@ -1,141 +1,130 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { FileText, LogOut, MessagesSquare, RefreshCw, Users } from 'lucide-react'
+import { CalendarDays, Factory, FileText, LayoutDashboard, MessagesSquare, Users, Wallet } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { irPara, useRota } from '@/lib/rota'
+import { ativo } from '@/lib/estagios'
+import { hojeISO } from '@/lib/datas'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useOrcamentos } from '@/hooks/useOrcamentos'
 import { useConversas } from '@/hooks/useConversas'
-import { OrcamentoCard } from '@/components/OrcamentoCard'
-import { Usuarios } from '@/components/Usuarios'
+import { usePedidos } from '@/hooks/usePedidos'
+import { Shell, type ItemMenu } from '@/components/layout/Shell'
+import { Inicio } from '@/components/inicio/Inicio'
+import { Orcamentos } from '@/components/orcamentos/Orcamentos'
+import { Producao } from '@/components/producao/Producao'
+import { PedidoPagina } from '@/components/producao/PedidoPagina'
+import { Calendario } from '@/components/calendario/Calendario'
+import { Caixa } from '@/components/caixa/Caixa'
 import { Conversas } from '@/components/conversas/Conversas'
+import { Usuarios } from '@/components/Usuarios'
+import { Pagina } from '@/components/ui/page'
 import { Login } from '@/components/Login'
 import { DefinirSenha, EsqueciSenha } from '@/components/Senha'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-
-type Aba = 'orcamentos' | 'conversas' | 'usuarios'
-
-function Orcamentos() {
-  const { itens, carregando, erro, decidir } = useOrcamentos()
-
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-4">
-      {erro && (
-        <div className="mb-4 border border-warn bg-warn-tint p-4 text-[13px] text-warn">
-          Não consegui carregar: {erro}
-        </div>
-      )}
-      {carregando && <p className="py-20 text-center text-sm text-faint">Carregando…</p>}
-      {!carregando && !itens.length && !erro && (
-        <div className="py-20 text-center">
-          <p className="font-medium text-ink">Nenhum orçamento pendente</p>
-          <p className="mt-1 text-sm text-faint">Tudo aprovado por aqui.</p>
-        </div>
-      )}
-      {itens.map((o) => (
-        <OrcamentoCard key={o.orcamento_id} orcamento={o} onDecidir={decidir} />
-      ))}
-    </main>
-  )
-}
 
 function Painel({ sessao }: { sessao: Session }) {
-  const { perfil, ehAdmin } = usePerfil(sessao.user.id)
-  const [aba, setAba] = useState<Aba>('orcamentos')
-  const [girando, setGirando] = useState(false)
-  const { itens, carregar } = useOrcamentos()
+  const { perfil, ehAdmin, carregando: carregandoPerfil } = usePerfil(sessao.user.id)
+  const rota = useRota()
+  const orcamentos = useOrcamentos()
   const conversas = useConversas()
+  const pedidos = usePedidos()
 
-  async function atualizar() {
-    setGirando(true)
-    await (aba === 'conversas' ? conversas.recarregar() : carregar())
-    setTimeout(() => setGirando(false), 400)
-  }
+  // Telas só de admin: quem não é admin volta para o início
+  const soAdmin = rota.pagina === 'caixa' || rota.pagina === 'usuarios'
+  useEffect(() => {
+    if (!carregandoPerfil && soAdmin && !ehAdmin) irPara('inicio')
+  }, [carregandoPerfil, soAdmin, ehAdmin])
 
-  const abas = [
-    ['orcamentos', 'Aprovações', FileText, itens.length],
-    ['conversas', 'Conversas', MessagesSquare, conversas.naoLidas],
-    ...(ehAdmin ? ([['usuarios', 'Usuários', Users, 0]] as const) : []),
-  ] as const
+  const hoje = hojeISO()
+  const atrasados = pedidos.pedidos.filter((p) => ativo(p.estagio) && p.data_entrega && p.data_entrega < hoje).length
 
-  const largura = aba === 'conversas' ? 'max-w-6xl' : 'max-w-2xl'
+  const itens: ItemMenu[] = [
+    { id: 'inicio', nome: 'Início', icone: LayoutDashboard },
+    { id: 'conversas', nome: 'Conversas', icone: MessagesSquare, qtd: conversas.naoLidas, tom: 'ok' },
+    { id: 'orcamentos', nome: 'Orçamentos', icone: FileText, qtd: orcamentos.itens.length },
+    { id: 'producao', nome: 'Produção', icone: Factory, qtd: atrasados, tom: 'warn' },
+    { id: 'calendario', nome: 'Calendário', icone: CalendarDays },
+    ...(ehAdmin
+      ? ([
+          { id: 'caixa', nome: 'Caixa', icone: Wallet },
+          { id: 'usuarios', nome: 'Usuários', icone: Users },
+        ] as ItemMenu[])
+      : []),
+  ]
 
-  return (
-    <div className="flex h-dvh flex-col">
-      <header className="shrink-0 border-b border-hair bg-card">
-        <div className={cn('mx-auto flex items-center justify-between gap-3 px-4 py-3', largura)}>
-          <div className="min-w-0">
-            <div className="font-semibold tracking-tight text-ink">
-              Claro <span className="text-indigo">Inox</span>
-            </div>
-            <div className="truncate text-[12px] text-faint">
-              {perfil?.nome || sessao.user.email}
-              {ehAdmin && ' · admin'}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {aba !== 'usuarios' && (
-              <Button variant="ghost" size="icon" onClick={atualizar} aria-label="Atualizar">
-                <RefreshCw
-                  className={cn('h-4 w-4', girando && 'animate-spin')}
-                  strokeWidth={1.75}
-                />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => supabase.auth.signOut()}
-              aria-label="Sair"
-            >
-              <LogOut className="h-4 w-4" strokeWidth={1.75} />
-            </Button>
-          </div>
-        </div>
+  const nome = perfil?.nome || sessao.user.email || 'Usuário'
 
-        <nav className={cn('mx-auto flex gap-1 overflow-x-auto px-3', largura)}>
-          {abas.map(([id, rotulo, Icone, qtd]) => (
-            <button
-              key={id}
-              onClick={() => setAba(id)}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] transition-colors',
-                aba === id
-                  ? 'border-indigo text-indigo'
-                  : 'border-transparent text-muted hover:text-body',
-              )}
-            >
-              <Icone className="h-4 w-4" strokeWidth={1.75} />
-              {rotulo}
-              {qtd > 0 && (
-                <span
-                  className={cn(
-                    'tnum rounded-full px-1.5 font-mono text-[11px]',
-                    id === 'conversas' ? 'bg-ok text-white' : '',
-                  )}
-                >
-                  {qtd}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </header>
-
-      {aba === 'conversas' ? (
-        <main className="min-h-0 flex-1">
+  function tela() {
+    switch (rota.pagina) {
+      case 'conversas':
+        return (
           <Conversas
             conversas={conversas.conversas}
             carregando={conversas.carregando}
             erro={conversas.erro}
+            selecionado={rota.id}
+            onSelecionar={(tel) => irPara('conversas', tel)}
           />
-        </main>
-      ) : (
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          {aba === 'orcamentos' ? <Orcamentos /> : <Usuarios meuId={sessao.user.id} />}
-        </main>
-      )}
-    </div>
+        )
+      case 'orcamentos':
+        return (
+          <Orcamentos
+            pendentes={orcamentos.itens}
+            carregando={orcamentos.carregando}
+            erro={orcamentos.erro}
+            decidir={orcamentos.decidir}
+            pedidos={pedidos.pedidos}
+          />
+        )
+      case 'producao':
+        return <Producao pedidos={pedidos.pedidos} carregando={pedidos.carregando} erro={pedidos.erro} />
+      case 'pedido':
+        return (
+          <PedidoPagina
+            id={rota.id}
+            pedidos={pedidos.pedidos}
+            carregando={pedidos.carregando}
+            ehAdmin={ehAdmin}
+            mudarEstagio={pedidos.mudarEstagio}
+            salvar={pedidos.salvar}
+            salvarValor={pedidos.salvarValor}
+            salvarRastreio={pedidos.salvarRastreio}
+          />
+        )
+      case 'calendario':
+        return <Calendario pedidos={pedidos.pedidos} carregando={pedidos.carregando} erro={pedidos.erro} />
+      case 'caixa':
+        return ehAdmin ? <Caixa pedidos={pedidos.pedidos} acao={rota.id} /> : null
+      case 'usuarios':
+        return ehAdmin ? (
+          <Pagina titulo="Usuários" subtitulo="Quem entra no painel e o que cada um pode fazer." largura="max-w-2xl">
+            <Usuarios meuId={sessao.user.id} />
+          </Pagina>
+        ) : null
+      default:
+        return (
+          <Inicio
+            nome={nome}
+            ehAdmin={ehAdmin}
+            orcamentosPendentes={orcamentos.itens}
+            conversasNaoLidas={conversas.naoLidas}
+            pedidos={pedidos.pedidos}
+          />
+        )
+    }
+  }
+
+  return (
+    <Shell
+      atual={rota.pagina}
+      itens={itens}
+      nome={nome}
+      papel={ehAdmin ? 'Administrador' : 'Operador'}
+      onSair={() => supabase.auth.signOut()}
+      cheia={rota.pagina === 'conversas'}
+    >
+      {tela()}
+    </Shell>
   )
 }
 

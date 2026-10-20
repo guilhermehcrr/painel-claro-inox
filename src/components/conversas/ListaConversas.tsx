@@ -14,7 +14,8 @@ const ROTULO_TIPO: Partial<Record<TipoMensagem, [string, typeof Mic]>> = {
 }
 
 function Previa({ c }: { c: Conversa }) {
-  const prefixo = c.ultima_autor === 'ia' ? 'IA: ' : c.ultima_autor === 'ramon' ? 'Ramon: ' : ''
+  const prefixo =
+    c.ultima_autor === 'ia' ? 'IA: ' : c.ultima_autor === 'ramon' ? 'Ramon: ' : c.ultima_autor === 'sistema' ? 'Aviso: ' : ''
   const tipo = ROTULO_TIPO[c.ultima_tipo]
   if (tipo) {
     const [rotulo, Icone] = tipo

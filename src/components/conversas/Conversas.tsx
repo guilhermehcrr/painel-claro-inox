@@ -10,14 +10,16 @@ interface Props {
   conversas: Conversa[]
   carregando: boolean
   erro: string | null
+  /** Telefone da conversa aberta (vem do endereço #/conversas/5531...) */
+  selecionado: string | null
+  onSelecionar: (telefone: string | null) => void
 }
 
 /**
  * Tela de Conversas. No computador: lista à esquerda e conversa à direita.
  * No celular: uma de cada vez, com botão de voltar.
  */
-export function Conversas({ conversas, carregando, erro }: Props) {
-  const [selecionado, setSelecionado] = useState<string | null>(null)
+export function Conversas({ conversas, carregando, erro, selecionado, onSelecionar }: Props) {
   const [busca, setBusca] = useState('')
   const { mensagens, carregando: carregandoMsg, erro: erroMsg, responder, definirIA, marcarLida } =
     useMensagens(selecionado)
@@ -37,7 +39,7 @@ export function Conversas({ conversas, carregando, erro }: Props) {
   }, [selecionado, mensagens, carregandoMsg, atual?.nao_lidas, marcarLida])
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-6xl border-x border-hair bg-card">
+    <div className="flex h-full min-h-0 bg-card">
       <aside
         className={cn(
           'h-full min-h-0 w-full border-r border-hair md:w-[340px] md:shrink-0 lg:w-[380px]',
@@ -52,7 +54,7 @@ export function Conversas({ conversas, carregando, erro }: Props) {
             selecionado={selecionado}
             busca={busca}
             onBusca={setBusca}
-            onSelecionar={setSelecionado}
+            onSelecionar={onSelecionar}
             carregando={carregando}
           />
         )}
@@ -66,7 +68,7 @@ export function Conversas({ conversas, carregando, erro }: Props) {
             mensagens={mensagens}
             carregando={carregandoMsg}
             erro={erroMsg}
-            onVoltar={() => setSelecionado(null)}
+            onVoltar={() => onSelecionar(null)}
             onResponder={responder}
             onDefinirIA={definirIA}
           />
