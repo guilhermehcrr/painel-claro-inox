@@ -123,6 +123,11 @@ export interface Mensagem {
   criado_em: string
 }
 
+/** Fila da conversa no funil (muda sozinha nos eventos e na mão pelo painel) */
+export type Etapa =
+  | 'novo' | 'pendencia_ramon' | 'enviar_orcamento' | 'orcamento_enviado'
+  | 'negociacao' | 'pagamento_pendente' | 'pedido_fechado' | 'perdido'
+
 export interface Conversa {
   telefone: string
   nome: string | null
@@ -133,6 +138,10 @@ export interface Conversa {
   ultima_autor: AutorMensagem
   ultima_em: string
   nao_lidas: number
+  etapa: Etapa
+  etapa_em: string | null
+  /** Quem moveu na mão. Vazio = o sistema moveu sozinho */
+  etapa_por_nome: string | null
 }
 
 // ---- Produção ----------------------------------------------------------------
@@ -160,12 +169,32 @@ export interface Pedido {
   criado_por_nome: string | null
   criado_em: string
   atualizado_em: string
+  /** Pedido excluído: sai da produção, do calendário e do caixa, e pode voltar */
+  excluido_em: string | null
+  excluido_por_nome: string | null
+}
+
+export type CategoriaAnexo = 'foto' | 'nf' | 'arquivo'
+
+export interface PedidoAnexo {
+  id: number
+  pedido_id: number
+  caminho: string
+  nome: string
+  categoria: CategoriaAnexo
+  tipo: string | null
+  tamanho: number | null
+  criado_por: string | null
+  criado_por_nome: string | null
+  criado_em: string
 }
 
 export interface PedidoEvento {
   id: number
   pedido_id: number
-  tipo: 'criado' | 'estagio' | 'data_entrega' | 'valor' | 'observacoes'
+  tipo:
+    | 'criado' | 'estagio' | 'data_entrega' | 'valor' | 'observacoes'
+    | 'excluido' | 'restaurado' | 'anexo' | 'anexo_removido'
   de: string | null
   para: string | null
   mensagem_id: number | null

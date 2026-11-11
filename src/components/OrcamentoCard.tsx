@@ -35,6 +35,10 @@ export function OrcamentoCard({ orcamento: o, onDecidir }: Props) {
   const c = d?.cotacao_frete
   const emb = d?.embalagem
   const materiais = Array.isArray(d?.materiais) ? d.materiais : []
+  // O que está sendo orçado, peça por peça (orçamentos antigos só têm a lista em texto)
+  const pecas = Array.isArray(d?.pecas) ? d.pecas : []
+  const itensTexto = !pecas.length && Array.isArray(r?.itens) ? r.itens : []
+  const descricao = (x: string | string[] | undefined) => (Array.isArray(x) ? x.join(' · ') : x ?? '')
 
   async function agir(status: 'aprovado' | 'rejeitado') {
     const pergunta = status === 'aprovado' ? 'Aprovar este orçamento?' : 'Rejeitar este orçamento?'
@@ -63,6 +67,33 @@ export function OrcamentoCard({ orcamento: o, onDecidir }: Props) {
         </div>
         <div className="mt-1 font-mono text-[11px] text-faint">{o.orcamento_id}</div>
       </div>
+
+      {(pecas.length > 0 || itensTexto.length > 0) && (
+        <div className="border-b border-hair px-4 py-3">
+          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-faint">Peças do orçamento</div>
+          <ul className="space-y-2">
+            {pecas.map((pc, i) => (
+              <li key={`${pc.tipo}-${i}`} className="flex items-start gap-3">
+                <span className="tnum mt-px w-7 shrink-0 text-[13px] font-semibold text-ink">{pc.quantidade}×</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-medium text-ink">{pc.nome}</span>
+                  {descricao(pc.descricao) && (
+                    <span className="block text-[12px] leading-snug text-muted">{descricao(pc.descricao)}</span>
+                  )}
+                </span>
+                {pc.preco_exibido != null && (
+                  <span className="tnum shrink-0 font-mono text-[13px] text-body">{brl(pc.preco_exibido)}</span>
+                )}
+              </li>
+            ))}
+            {itensTexto.map((t, i) => (
+              <li key={i} className="text-[14px] text-ink">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 border-b border-hair">
         <Stat label="Total" value={brl(r?.total)} strong />

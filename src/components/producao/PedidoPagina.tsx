@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Check, Clock, MessageCircle, Pencil, Printer, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Check, Clock, MessageCircle, Pencil, Printer, RotateCcw, Trash2, TriangleAlert } from 'lucide-react'
 import type { Estagio, Lancamento, Pedido, PedidoEvento } from '@/lib/types'
 import { CANCELADO, ESTAGIOS, anterior, infoEstagio, posicao, proximo, type InfoEstagio } from '@/lib/estagios'
 import { dataBR } from '@/lib/datas'
@@ -14,13 +14,18 @@ import { SeloEstagio } from '@/components/ui/selo'
 import { Modal } from '@/components/ui/modal'
 import { Entrada, Rotulo, Texto, lerValor } from '@/components/ui/campo'
 import { OrdemProducao } from './OrdemProducao'
+import { Anexos } from './Anexos'
 import { cn } from '@/lib/utils'
 
 interface Props {
   id: string | null
+  /** Todos os pedidos, inclusive os excluídos (a página mostra e deixa restaurar) */
   pedidos: Pedido[]
   carregando: boolean
   ehAdmin: boolean
+  meuId: string
+  excluir: (id: number) => Promise<void>
+  restaurar: (id: number) => Promise<void>
   mudarEstagio: (id: number, estagio: Estagio, rastreio?: string) => Promise<void>
   salvar: (id: number, dataEntrega: string | null, observacoes: string | null) => Promise<void>
   salvarValor: (id: number, valor: number) => Promise<void>
@@ -189,10 +194,79 @@ function textoEvento(e: PedidoEvento) {
       return `Valor do pedido alterado de ${brl(Number(e.de))} para ${brl(Number(e.para))}`
     case 'observacoes':
       return 'Observações editadas'
+    case 'excluido':
+      return 'Pedido excluído, com os pagamentos do caixa'
+    case 'restaurado':
+      return 'Pedido restaurado'
+    case 'anexo':
+      return `Anexou ${e.para ?? 'um arquivo'}`
+    case 'anexo_removido':
+      return `Apagou o anexo ${e.para ?? ''}`
   }
 }
 
-export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, salvar, salvarValor, salvarRastreio }: Props) {
+/** Confirma a exclusão do pedido, dizendo o que sai junto */
+function ConfirmarExclusao({
+  p,
+  pagamentos,
+  onFechar,
+  onConfirmar,
+}: {
+  p: Pedido
+  pagamentos: number
+  onFechar: () => void
+  onConfirmar: () => Promise<void>
+}) {
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  async function confirmar() {
+    setEnviando(true)
+    setErro(null)
+    try {
+      await onConfirmar()
+      onFechar()
+    } catch (e) {
+      setErro(mensagemErro(e))
+      setEnviando(false)
+    }
+  }
+  return (
+    <Modal
+      aberto
+      titulo="Excluir pedido"
+      onFechar={onFechar}
+      rodape={
+        <>
+          <Button variant="outline" size="sm" onClick={onFechar} disabled={enviando}>
+            Voltar
+          </Button>
+          <Button size="sm" variant="outline" className="border-warn text-warn hover:bg-warn-tint" onClick={confirmar} disabled={enviando}>
+            {enviando ? 'Excluindo…' : 'Excluir pedido'}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-[14px] text-body">
+        O pedido <strong className="font-semibold text-ink">{p.numero}</strong> de {p.nome_cliente || 'cliente sem nome'} sai da
+        produção, do calendário e do a receber.
+      </p>
+      <p className="mt-2 text-[14px] text-muted">
+        {pagamentos > 0
+          ? `${pagamentos === 1 ? 'O pagamento lançado' : `Os ${pagamentos} pagamentos lançados`} para ele ${pagamentos === 1 ? 'sai' : 'saem'} do caixa junto. `
+          : ''}
+        O cliente não recebe mensagem. Dá para restaurar depois, com tudo de volta.
+      </p>
+      <p className="mt-2 text-[13px] text-muted">
+        Se o pedido foi lançado no orçamento errado, exclua e lance de novo no certo.
+      </p>
+      {erro && <p className="mt-3 text-[13px] text-warn">{erro}</p>}
+    </Modal>
+  )
+}
+
+export function PedidoPagina({
+  id, pedidos, carregando, ehAdmin, meuId, excluir, restaurar, mudarEstagio, salvar, salvarValor, salvarRastreio,
+}: Props) {
   const p = pedidos.find((x) => String(x.id) === id) ?? null
   const { eventos, avisos } = useEventos(p?.id ?? null, p?.telefone ?? null)
   const textos = useTextosAviso()
@@ -205,6 +279,9 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
   const [editandoValor, setEditandoValor] = useState(false)
   const [valorTexto, setValorTexto] = useState('')
   const [rastreio, setRastreio] = useState('')
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false)
+  const [restaurando, setRestaurando] = useState(false)
+  const [erroRestaurar, setErroRestaurar] = useState<string | null>(null)
 
   // Quando o pedido muda no banco (outra pessoa salvou), o formulário acompanha
   useEffect(() => {
@@ -221,8 +298,9 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
       </Pagina>
     )
 
-  const seguinte = p.estagio === 'cancelado' ? null : proximo(p.estagio)
-  const anteriorEst = p.estagio === 'cancelado' ? (ehAdmin ? ESTAGIOS[0] : null) : anterior(p.estagio)
+  const excluido = !!p.excluido_em
+  const seguinte = excluido || p.estagio === 'cancelado' ? null : proximo(p.estagio)
+  const anteriorEst = excluido ? null : p.estagio === 'cancelado' ? (ehAdmin ? ESTAGIOS[0] : null) : anterior(p.estagio)
   const mudouForm = (dataEntrega || '') !== (p.data_entrega ?? '') || obs.trim() !== (p.observacoes ?? '')
   const recebido = pagamentos.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
   const falta = Math.max(p.valor - recebido, 0)
@@ -246,6 +324,17 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
     } catch (e) {
       setAviso({ tipo: 'erro', texto: mensagemErro(e) })
     }
+  }
+
+  async function voltarPedido() {
+    setRestaurando(true)
+    setErroRestaurar(null)
+    try {
+      await restaurar(p!.id)
+    } catch (e) {
+      setErroRestaurar(mensagemErro(e))
+    }
+    setRestaurando(false)
   }
 
   async function salvarNovoValor() {
@@ -295,6 +384,24 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
         </>
       }
     >
+      {excluido && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warn/30 bg-warn-tint px-4 py-3">
+          <div className="text-[14px] text-warn">
+            <p className="font-medium">
+              Pedido excluído{p.excluido_por_nome ? ` por ${p.excluido_por_nome}` : ''} {desde(p.excluido_em)}
+            </p>
+            <p className="text-[13px]">Está fora da produção, do calendário e do caixa.</p>
+            {erroRestaurar && <p className="mt-1 text-[13px] font-medium">{erroRestaurar}</p>}
+          </div>
+          {ehAdmin && (
+            <Button size="sm" variant="outline" onClick={voltarPedido} disabled={restaurando}>
+              <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
+              {restaurando ? 'Restaurando…' : 'Restaurar pedido'}
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Régua grande com o nome de cada estágio */}
       <ol className="mb-5 grid grid-cols-5 gap-1" aria-label="Estágios do pedido">
         {ESTAGIOS.map((e, i) => {
@@ -337,7 +444,7 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
               <Rotulo htmlFor="obs">Observações para a oficina</Rotulo>
               <Texto id="obs" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: cliente pediu acabamento escovado" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className={cn('flex items-center gap-3', excluido && 'hidden')}>
               <Button size="sm" onClick={salvarEntrega} disabled={!mudouForm || salvando}>
                 {salvando ? 'Salvando…' : 'Salvar'}
               </Button>
@@ -349,9 +456,11 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
             <Painel
               titulo="Pagamento"
               acao={
-                <button onClick={() => irPara('caixa', `pagar-${p.id}`)} className="text-[13px] text-indigo hover:underline">
-                  Lançar pagamento
-                </button>
+                !excluido && (
+                  <button onClick={() => irPara('caixa', `pagar-${p.id}`)} className="text-[13px] text-indigo hover:underline">
+                    Lançar pagamento
+                  </button>
+                )
               }
               corpo="px-4 py-3"
             >
@@ -375,6 +484,7 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
                   ) : (
                     <dd className="flex items-center gap-1.5">
                       <span className="tnum font-medium text-ink">{brl(p.valor)}</span>
+                      {!excluido && (
                       <button
                         onClick={() => {
                           setValorTexto(p.valor.toFixed(2).replace('.', ','))
@@ -385,6 +495,7 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
                       >
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </button>
+                      )}
                     </dd>
                   )}
                 </div>
@@ -414,6 +525,8 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
               )}
             </Painel>
           )}
+
+          <Anexos pedidoId={p.id} ehAdmin={ehAdmin} meuId={meuId} somenteLeitura={excluido} />
 
           <Painel titulo="Histórico">
             {eventos.length ? (
@@ -445,9 +558,15 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
                 {p.estagio === 'cancelado' ? 'Reativar pedido' : `Voltar para ${anteriorEst.nome.toLowerCase()}`}
               </Button>
             )}
-            {ehAdmin && p.estagio !== 'cancelado' && p.estagio !== 'entregue' && (
+            {ehAdmin && !excluido && p.estagio !== 'cancelado' && p.estagio !== 'entregue' && (
               <Button variant="ghost" size="sm" className="text-warn hover:bg-warn-tint hover:text-warn" onClick={() => setDestino(CANCELADO)}>
                 Cancelar pedido
+              </Button>
+            )}
+            {ehAdmin && !excluido && (
+              <Button variant="ghost" size="sm" className="text-warn hover:bg-warn-tint hover:text-warn" onClick={() => setConfirmarExclusao(true)}>
+                <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                Excluir pedido
               </Button>
             )}
           </div>
@@ -458,6 +577,15 @@ export function PedidoPagina({ id, pedidos, carregando, ehAdmin, mudarEstagio, s
       <div className="so-imprimir">
         <OrdemProducao p={p} impressao />
       </div>
+
+      {confirmarExclusao && (
+        <ConfirmarExclusao
+          p={p}
+          pagamentos={pagamentos.length}
+          onFechar={() => setConfirmarExclusao(false)}
+          onConfirmar={() => excluir(p.id)}
+        />
+      )}
 
       {destino && (
         <ConfirmarEstagio

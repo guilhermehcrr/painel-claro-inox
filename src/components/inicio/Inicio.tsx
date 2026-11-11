@@ -1,4 +1,4 @@
-import { CalendarX2, ChevronRight, Clock4, FileText, MessagesSquare } from 'lucide-react'
+import { CalendarX2, ChevronRight, Clock4, FileText, MessagesSquare, UserRound } from 'lucide-react'
 import type { Orcamento, Pedido } from '@/lib/types'
 import { ESTAGIOS, ativo } from '@/lib/estagios'
 import { dataCurta, diasEntre, hojeISO, nomeMes, primeiroDiaMes, prazoRelativo, ultimoDiaMes } from '@/lib/datas'
@@ -7,6 +7,7 @@ import { useCaixa } from '@/hooks/useCaixa'
 import { Pagina, Painel } from '@/components/ui/page'
 import { SeloEstagio } from '@/components/ui/selo'
 import { cn } from '@/lib/utils'
+import { CHAVE_FILA } from '@/lib/etapas'
 
 function saudacao() {
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hour12: false, timeZone: 'America/Sao_Paulo' }).format(new Date()))
@@ -21,6 +22,8 @@ interface Props {
   ehAdmin: boolean
   orcamentosPendentes: Orcamento[]
   conversasNaoLidas: number
+  /** Conversas na fila "Pendência com Ramon" */
+  conversasComRamon?: number
   pedidos: Pedido[]
 }
 
@@ -31,8 +34,10 @@ function Pendencia({
   texto,
   detalhe,
   tom,
+  onClick,
 }: {
   href: string
+  onClick?: () => void
   icone: typeof FileText
   qtd: number
   texto: string
@@ -46,7 +51,7 @@ function Pendencia({
     palha: 'bg-palha-tint text-palha',
   }
   return (
-    <a href={href} className="flex items-center gap-3 border-b border-hair px-4 py-3 last:border-b-0 hover:bg-paper/60">
+    <a href={href} onClick={onClick} className="flex items-center gap-3 border-b border-hair px-4 py-3 last:border-b-0 hover:bg-paper/60">
       <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-md', cores[tom])}>
         <Icone className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </span>
@@ -150,7 +155,16 @@ function CaixaDoMes() {
   )
 }
 
-export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, pedidos }: Props) {
+/** Abre as Conversas já na fila pedida */
+function abrirFila(fila: string) {
+  try {
+    localStorage.setItem(CHAVE_FILA, fila)
+  } catch {
+    /* sem armazenamento: abre na fila que estiver */
+  }
+}
+
+export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, conversasComRamon = 0, pedidos }: Props) {
   const hoje = hojeISO()
   const naOficina = pedidos.filter((p) => ativo(p.estagio))
   const atrasados = naOficina.filter((p) => p.data_entrega && p.data_entrega < hoje)
@@ -173,10 +187,23 @@ export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, 
         detalhe={maisAntigo ? `O mais antigo chegou ${desde(maisAntigo.criado_em)}` : undefined}
       />
     ),
+    conversasComRamon > 0 && (
+      <Pendencia
+        key="ramon"
+        href="#/conversas"
+        onClick={() => abrirFila('pendencia_ramon')}
+        icone={UserRound}
+        tom="warn"
+        qtd={conversasComRamon}
+        texto={conversasComRamon === 1 ? 'conversa com pendência do Ramon' : 'conversas com pendência do Ramon'}
+        detalhe="A IA passou para você ou o orçamento foi rejeitado"
+      />
+    ),
     conversasNaoLidas > 0 && (
       <Pendencia
         key="conv"
         href="#/conversas"
+        onClick={() => abrirFila('todas')}
         icone={MessagesSquare}
         tom="ok"
         qtd={conversasNaoLidas}

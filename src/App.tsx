@@ -64,6 +64,7 @@ function Painel({ sessao }: { sessao: Session }) {
             erro={conversas.erro}
             selecionado={rota.id}
             onSelecionar={(tel) => irPara('conversas', tel)}
+            onDefinirEtapa={conversas.definirEtapa}
           />
         )
       case 'orcamentos':
@@ -77,14 +78,24 @@ function Painel({ sessao }: { sessao: Session }) {
           />
         )
       case 'producao':
-        return <Producao pedidos={pedidos.pedidos} carregando={pedidos.carregando} erro={pedidos.erro} />
+        return (
+          <Producao
+            pedidos={pedidos.pedidos}
+            excluidos={pedidos.excluidos}
+            carregando={pedidos.carregando}
+            erro={pedidos.erro}
+          />
+        )
       case 'pedido':
         return (
           <PedidoPagina
             id={rota.id}
-            pedidos={pedidos.pedidos}
+            pedidos={pedidos.todos}
             carregando={pedidos.carregando}
             ehAdmin={ehAdmin}
+            meuId={sessao.user.id}
+            excluir={pedidos.excluir}
+            restaurar={pedidos.restaurar}
             mudarEstagio={pedidos.mudarEstagio}
             salvar={pedidos.salvar}
             salvarValor={pedidos.salvarValor}
@@ -94,7 +105,7 @@ function Painel({ sessao }: { sessao: Session }) {
       case 'calendario':
         return <Calendario pedidos={pedidos.pedidos} carregando={pedidos.carregando} erro={pedidos.erro} />
       case 'caixa':
-        return ehAdmin ? <Caixa pedidos={pedidos.pedidos} acao={rota.id} /> : null
+        return ehAdmin ? <Caixa pedidos={pedidos.pedidos} todosPedidos={pedidos.todos} acao={rota.id} /> : null
       case 'usuarios':
         return ehAdmin ? (
           <Pagina titulo="Usuários" subtitulo="Quem entra no painel e o que cada um pode fazer." largura="max-w-2xl">
@@ -108,6 +119,7 @@ function Painel({ sessao }: { sessao: Session }) {
             ehAdmin={ehAdmin}
             orcamentosPendentes={orcamentos.itens}
             conversasNaoLidas={conversas.naoLidas}
+            conversasComRamon={conversas.comRamon}
             pedidos={pedidos.pedidos}
           />
         )

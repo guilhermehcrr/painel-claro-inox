@@ -85,6 +85,16 @@ export function useCaixa(de: string, ate: string, ligado = true) {
     [carregar],
   )
 
+  /** Volta um lançamento excluído. Lançamento de pedido excluído só volta restaurando o pedido. */
+  const restaurar = useCallback(
+    async (id: number) => {
+      const { error } = await supabase.rpc('restaurar_lancamento', { p_id: id })
+      if (error) throw new Error(mensagemErro(error.message))
+      await carregar()
+    },
+    [carregar],
+  )
+
   const salvarCategoria = useCallback(
     async (c: { id?: number; nome: string; tipo: TipoLancamento; ativa?: boolean }) => {
       const nome = c.nome.trim()
@@ -102,5 +112,5 @@ export function useCaixa(de: string, ate: string, ligado = true) {
     [carregar],
   )
 
-  return { lancamentos, categorias, aReceber, carregando, erro, recarregar: carregar, lancar, excluir, salvarCategoria }
+  return { lancamentos, categorias, aReceber, carregando, erro, recarregar: carregar, lancar, excluir, restaurar, salvarCategoria }
 }

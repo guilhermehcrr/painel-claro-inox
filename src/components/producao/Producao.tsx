@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 
 interface Props {
   pedidos: Pedido[]
+  /** Pedidos excluídos, para abrir e restaurar */
+  excluidos?: Pedido[]
   carregando: boolean
   erro: string | null
 }
@@ -21,10 +23,11 @@ function ordenar(a: Pedido, b: Pedido) {
   return a.criado_em < b.criado_em ? -1 : 1
 }
 
-export function Producao({ pedidos, carregando, erro }: Props) {
+export function Producao({ pedidos, excluidos = [], carregando, erro }: Props) {
   const [busca, setBusca] = useState('')
   const [aba, setAba] = useState<Estagio>('aguardando')
   const [verCancelados, setVerCancelados] = useState(false)
+  const [verExcluidos, setVerExcluidos] = useState(false)
   const hoje = hojeISO()
 
   const termo = busca.trim().toLowerCase()
@@ -115,6 +118,24 @@ export function Producao({ pedidos, carregando, erro }: Props) {
               {!coluna.itens.length && <Vazio titulo={`Nenhum pedido em ${coluna.nome.toLowerCase()}`} />}
             </div>
           </div>
+
+          {excluidos.length > 0 && (
+            <div className="mt-6">
+              <button onClick={() => setVerExcluidos((v) => !v)} className="text-[13px] text-muted hover:text-body">
+                {verExcluidos ? 'Esconder' : 'Ver'} excluídos ({excluidos.length})
+              </button>
+              {verExcluidos && (
+                <>
+                  <p className="mt-1 text-[12px] text-faint">Abra o pedido para restaurar. Só administrador restaura.</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {excluidos.map((p) => (
+                      <CartaoPedido key={p.id} p={p} className="opacity-60" />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {cancelados.length > 0 && (
             <div className="mt-6">

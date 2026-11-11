@@ -1,9 +1,66 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bot, ExternalLink, Info, SendHorizontal } from 'lucide-react'
-import type { Conversa, Mensagem } from '@/lib/types'
-import { mesmoDia, rotuloDia, telefoneBonito } from '@/lib/format'
+import { ArrowLeft, Bot, ChevronDown, ExternalLink, Info, SendHorizontal } from 'lucide-react'
+import type { Conversa, Etapa, Mensagem } from '@/lib/types'
+import { desde, mesmoDia, rotuloDia, telefoneBonito } from '@/lib/format'
+import { ETAPAS, infoEtapa } from '@/lib/etapas'
 import { cn } from '@/lib/utils'
 import { BolhaMensagem } from './BolhaMensagem'
+
+/** Faixa abaixo do cabeçalho: em que fila a conversa está, e trocar na mão */
+function FaixaEtapa({
+  conversa,
+  onDefinir,
+}: {
+  conversa: Conversa | undefined
+  onDefinir: (etapa: Etapa) => Promise<void>
+}) {
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const atual = infoEtapa(conversa?.etapa)
+
+  async function trocar(e: Etapa) {
+    if (e === conversa?.etapa) return
+    setSalvando(true)
+    setErro(null)
+    try {
+      await onDefinir(e)
+    } catch (x) {
+      setErro(x instanceof Error ? x.message : 'Não consegui mudar a fila.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const quem = conversa?.etapa_em
+    ? `${conversa.etapa_por_nome ? `Movida por ${conversa.etapa_por_nome}` : 'Movida automaticamente'} ${desde(conversa.etapa_em)}`
+    : null
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hair bg-card px-3 py-1.5 sm:px-4">
+      <span className="text-[12px] text-faint">Fila</span>
+      <label className={cn('relative inline-flex items-center rounded-md', atual.selo, salvando && 'opacity-60')}>
+        <span className={cn('pointer-events-none absolute left-2 h-2 w-2 rounded-full', atual.selo.includes('text-white') ? 'bg-white' : atual.ponto)} />
+        <select
+          value={conversa?.etapa ?? 'novo'}
+          onChange={(e) => trocar(e.target.value as Etapa)}
+          disabled={salvando || !conversa}
+          aria-label="Fila da conversa"
+          title={atual.quando}
+          className="cursor-pointer appearance-none bg-transparent py-1 pl-6 pr-7 text-[12px] font-medium outline-none"
+        >
+          {ETAPAS.map((e) => (
+            <option key={e.id} value={e.id} className="bg-card text-ink">
+              {e.nome}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-1.5 h-3.5 w-3.5" strokeWidth={2} />
+      </label>
+      {quem && <span className="text-[12px] text-faint">{quem}</span>}
+      {erro && <span className="text-[12px] text-warn">{erro}</span>}
+    </div>
+  )
+}
 
 function ChaveIA({
   ligada,
@@ -127,6 +184,7 @@ interface Props {
   onVoltar: () => void
   onResponder: (texto: string) => Promise<void>
   onDefinirIA: (ligada: boolean) => Promise<void>
+  onDefinirEtapa: (etapa: Etapa) => Promise<void>
 }
 
 export function ChatConversa({
@@ -138,6 +196,7 @@ export function ChatConversa({
   onVoltar,
   onResponder,
   onDefinirIA,
+  onDefinirEtapa,
 }: Props) {
   const rolagem = useRef<HTMLDivElement>(null)
   const conteudo = useRef<HTMLDivElement>(null)
@@ -206,6 +265,8 @@ export function ChatConversa({
         </div>
         <ChaveIA ligada={iaLigada} ocupado={trocandoIA} onTrocar={trocarIA} />
       </header>
+
+      <FaixaEtapa conversa={conversa} onDefinir={onDefinirEtapa} />
 
       {erroIA && <div className="bg-warn-tint px-4 py-1.5 text-[12px] text-warn">{erroIA}</div>}
       {!iaLigada && (

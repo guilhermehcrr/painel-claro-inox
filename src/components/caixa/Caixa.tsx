@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import type { Lancamento, Pedido } from '@/lib/types'
 import { dataCurta, hojeISO, primeiroDiaMes, somarMeses, tituloMes, ultimoDiaMes } from '@/lib/datas'
 import { brl } from '@/lib/format'
@@ -18,6 +18,8 @@ type Aba = 'lancamentos' | 'relatorio' | 'receber' | 'categorias'
 
 interface Props {
   pedidos: Pedido[]
+  /** Inclui os excluídos: o lançamento de pedido excluído ainda mostra o número */
+  todosPedidos?: Pedido[]
   /** "pagar-12" abre o lançamento já com o pedido 12 */
   acao: string | null
 }
@@ -27,11 +29,13 @@ function Lancamentos({
   nomeCategoria,
   numeroPedido,
   excluir,
+  restaurar,
 }: {
   lancamentos: Lancamento[]
   nomeCategoria: (id: number) => string
   numeroPedido: (id: number | null) => string | null
   excluir: (id: number) => Promise<void>
+  restaurar: (id: number) => Promise<void>
 }) {
   const [filtro, setFiltro] = useState<'todos' | 'entrada' | 'saida'>('todos')
   const [verExcluidos, setVerExcluidos] = useState(false)
@@ -44,6 +48,15 @@ function Lancamentos({
     if (!window.confirm(`Excluir ${l.tipo === 'entrada' ? 'a entrada' : 'a saída'} de ${brl(l.valor)}? Fica registrado quem excluiu.`)) return
     try {
       await excluir(l.id)
+    } catch (e) {
+      setErro(mensagemErro(e))
+    }
+  }
+
+  async function voltar(l: Lancamento) {
+    setErro(null)
+    try {
+      await restaurar(l.id)
     } catch (e) {
       setErro(mensagemErro(e))
     }
@@ -79,12 +92,9 @@ function Lancamentos({
             {lista.map((l) => {
               const pedido = numeroPedido(l.pedido_id)
               return (
-                <li
-                  key={l.id}
-                  className={cn('flex items-center gap-3 border-b border-hair px-4 py-3 last:border-b-0', l.excluido_em && 'opacity-50')}
-                >
-                  <span className="tnum w-11 shrink-0 text-[13px] text-muted">{dataCurta(l.data)}</span>
-                  <span className="min-w-0 flex-1">
+                <li key={l.id} className="flex items-center gap-3 border-b border-hair px-4 py-3 last:border-b-0">
+                  <span className={cn('tnum w-11 shrink-0 text-[13px] text-muted', l.excluido_em && 'opacity-50')}>{dataCurta(l.data)}</span>
+                  <span className={cn('min-w-0 flex-1', l.excluido_em && 'opacity-50')}>
                     <span className={cn('block truncate text-[14px] text-ink', l.excluido_em && 'line-through')}>
                       {l.descricao || nomeCategoria(l.categoria_id)}
                     </span>
@@ -105,7 +115,7 @@ function Lancamentos({
                           : ''}
                     </span>
                   </span>
-                  <span className={cn('tnum shrink-0 text-[15px] font-medium', l.tipo === 'entrada' ? 'text-ok' : 'text-warn')}>
+                  <span className={cn('tnum shrink-0 text-[15px] font-medium', l.tipo === 'entrada' ? 'text-ok' : 'text-warn', l.excluido_em && 'opacity-50')}>
                     {l.tipo === 'saida' ? '− ' : '+ '}
                     {brl(l.valor)}
                   </span>
@@ -118,7 +128,14 @@ function Lancamentos({
                       <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                     </button>
                   ) : (
-                    <span className="w-7 shrink-0" />
+                    <button
+                      onClick={() => voltar(l)}
+                      className="shrink-0 rounded p-1.5 text-muted hover:bg-indigo-tint hover:text-indigo"
+                      aria-label="Restaurar lançamento"
+                      title="Restaurar lançamento"
+                    >
+                      <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
+                    </button>
                   )}
                 </li>
               )
@@ -130,7 +147,7 @@ function Lancamentos({
   )
 }
 
-export function Caixa({ pedidos, acao }: Props) {
+export function Caixa({ pedidos, todosPedidos, acao }: Props) {
   const hoje = hojeISO()
   const [aba, setAba] = useState<Aba>('lancamentos')
   const [mes, setMes] = useState(hoje.slice(0, 7))
@@ -147,7 +164,7 @@ export function Caixa({ pedidos, acao }: Props) {
   }, [acao])
 
   const nomes = useMemo(() => new Map(caixa.categorias.map((c) => [c.id, c.nome])), [caixa.categorias])
-  const numeros = useMemo(() => new Map(pedidos.map((p) => [p.id, p.numero])), [pedidos])
+  const numeros = useMemo(() => new Map((todosPedidos ?? pedidos).map((p) => [p.id, p.numero])), [todosPedidos, pedidos])
   const ativos = caixa.lancamentos.filter((l) => !l.excluido_em)
   const entradas = ativos.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
   const saidas = ativos.filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
@@ -206,6 +223,7 @@ export function Caixa({ pedidos, acao }: Props) {
                 nomeCategoria={(id) => nomes.get(id) ?? 'Sem categoria'}
                 numeroPedido={(id) => (id ? numeros.get(id) ?? null : null)}
                 excluir={caixa.excluir}
+                restaurar={caixa.restaurar}
               />
             </>
           )}

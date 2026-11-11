@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Estagio, Pedido, PedidoEvento } from '@/lib/types'
 import { comoObjeto } from '@/lib/json'
@@ -11,9 +11,13 @@ const normalizar = (p: Pedido): Pedido => ({
   detalhe: comoObjeto(p.detalhe),
 })
 
-/** Todos os pedidos (os da oficina e os já entregues), atualizando sozinho. */
+/**
+ * Pedidos atualizando sozinhos. `pedidos` são os que valem (oficina, entregues,
+ * cancelados); `excluidos` saíram da produção e do caixa e podem ser restaurados;
+ * `todos` junta os dois, para abrir a página de qualquer um.
+ */
 export function usePedidos() {
-  const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [todos, setTodos] = useState<Pedido[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -26,7 +30,7 @@ export function usePedidos() {
     if (error) setErro(mensagemErro(error.message))
     else {
       setErro(null)
-      setPedidos(((data ?? []) as Pedido[]).map(normalizar))
+      setTodos(((data ?? []) as Pedido[]).map(normalizar))
     }
     setCarregando(false)
   }, [])
@@ -80,7 +84,33 @@ export function usePedidos() {
     [carregar],
   )
 
-  return { pedidos, carregando, erro, recarregar: carregar, mudarEstagio, salvar, salvarValor, salvarRastreio }
+  /** Só admin. Os pagamentos do pedido saem do caixa junto. */
+  const excluir = useCallback(
+    async (id: number) => {
+      const { error } = await supabase.rpc('excluir_pedido', { p_pedido: id })
+      if (error) throw new Error(mensagemErro(error.message))
+      await carregar()
+    },
+    [carregar],
+  )
+
+  /** Só admin. Volta com os pagamentos que saíram junto. */
+  const restaurar = useCallback(
+    async (id: number) => {
+      const { error } = await supabase.rpc('restaurar_pedido', { p_pedido: id })
+      if (error) throw new Error(mensagemErro(error.message))
+      await carregar()
+    },
+    [carregar],
+  )
+
+  const pedidos = useMemo(() => todos.filter((p) => !p.excluido_em), [todos])
+  const excluidos = useMemo(() => todos.filter((p) => p.excluido_em), [todos])
+
+  return {
+    pedidos, excluidos, todos, carregando, erro, recarregar: carregar,
+    mudarEstagio, salvar, salvarValor, salvarRastreio, excluir, restaurar,
+  }
 }
 
 export interface SituacaoAviso {
