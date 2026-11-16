@@ -42,6 +42,25 @@ export interface CotacaoFrete {
   motivo_fallback?: string | null
   erro?: string
   opcoes?: { servico: string; preco: number; prazo: number }[]
+  /** 'manual' = o Ramon escolheu a transportadora no painel */
+  escolha?: 'manual'
+  /** Transportadora escolhida que não atendeu na última cotação */
+  escolha_indisponivel?: string
+}
+
+export interface ItemEntrada {
+  tipo: string
+  qtd: number
+}
+
+export interface Embalagem {
+  comprimento_cm: number
+  largura_cm: number
+  altura_cm: number
+  peso_kg: number | null
+  /** O que o sistema calculou (a caixa pode ter sido editada no painel) */
+  calculada?: { comprimento_cm: number; largura_cm: number; altura_cm: number; peso_kg: number | null }
+  editada?: boolean
 }
 
 export interface DetalheOrcamento {
@@ -53,6 +72,8 @@ export interface DetalheOrcamento {
     modelo: string
     perfil: string
     quantidade: number
+    itens?: ItemEntrada[]
+    kit_padrao?: boolean
   }
   pernas_reforco: number
   materiais: ItemMaterial[]
@@ -62,12 +83,7 @@ export interface DetalheOrcamento {
   frete: number
   taxa_6x_pct: number
   total: number
-  embalagem: {
-    comprimento_cm: number
-    largura_cm: number
-    altura_cm: number
-    peso_kg: number | null
-  }
+  embalagem: Embalagem
   cotacao_frete?: CotacaoFrete | null
   pecas?: PecaOrcamento[]
 }
@@ -78,7 +94,13 @@ export interface PecaOrcamento {
   descricao?: string | string[]
   quantidade: number
   preco_unitario?: number
+  /** Preço unitário que o cliente vê no PDF (frete e 6x já diluídos) */
+  preco_unitario_exibido?: number
   preco_exibido?: number
+  /** Preço digitado pelo Ramon no editor */
+  preco_manual?: boolean
+  /** O que o sistema tinha calculado antes do preço manual */
+  preco_calculado?: number
 }
 
 export interface Orcamento {
@@ -100,6 +122,13 @@ export interface Orcamento {
   a_mm?: number | null
   b_mm?: number | null
   c_mm?: number | null
+  /** ia = atendimento no WhatsApp; painel = calculadora do painel */
+  origem?: 'ia' | 'painel'
+  resumo_ia?: ResumoOrcamento | null
+  detalhe_ia?: DetalheOrcamento | null
+  editado_em?: string | null
+  editado_por_nome?: string | null
+  criado_por_nome?: string | null
 }
 
 // ---- Conversas (tela estilo WhatsApp Web) ----------------------------------

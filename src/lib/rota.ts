@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Navegação pelo endereço (#/producao, #/pedido/12). Assim o botão voltar do
+ * Navegação pelo endereço (#/producao, #/pedido/12, #/orcamento/41, #/orcamento/novo). Assim o botão voltar do
  * celular funciona, e dá para recarregar a página sem perder onde estava.
  */
 export type Pagina =
-  | 'inicio' | 'conversas' | 'orcamentos' | 'producao' | 'pedido' | 'calendario' | 'caixa' | 'usuarios'
+  | 'inicio' | 'conversas' | 'orcamentos' | 'orcamento' | 'producao' | 'pedido' | 'calendario' | 'caixa' | 'usuarios'
 
 export interface Rota {
   pagina: Pagina
   id: string | null
 }
 
-const PAGINAS: Pagina[] = ['inicio', 'conversas', 'orcamentos', 'producao', 'pedido', 'calendario', 'caixa', 'usuarios']
+const PAGINAS: Pagina[] = ['inicio', 'conversas', 'orcamentos', 'orcamento', 'producao', 'pedido', 'calendario', 'caixa', 'usuarios']
 
 function ler(): Rota {
   const [p, id] = window.location.hash.replace(/^#\/?/, '').split('/')

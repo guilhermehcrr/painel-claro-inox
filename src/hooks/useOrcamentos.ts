@@ -2,6 +2,30 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Orcamento, StatusOrcamento } from '@/lib/types'
 
+/**
+ * Grava a decisão. Aprovado vira o PDF (o Database Webhook do Supabase escuta a
+ * mudança de status e dispara o envio no n8n) e o lead vai para
+ * 'orcamento_enviado'. Rejeitar não mexe na IA.
+ * Fica fora do hook porque o editor de orçamento também aprova.
+ */
+export async function decidirOrcamento(
+  o: Pick<Orcamento, 'orcamento_id' | 'telefone'>,
+  status: Extract<StatusOrcamento, 'aprovado' | 'rejeitado'>,
+) {
+  const { error } = await supabase
+    .from('orcamentos')
+    .update({ status, aprovado_em: new Date().toISOString() })
+    .eq('orcamento_id', o.orcamento_id)
+  if (error) throw new Error(error.message)
+
+  if (o.telefone && status === 'aprovado') {
+    await supabase
+      .from('leads')
+      .update({ status: 'orcamento_enviado', atualizado_em: new Date().toISOString() })
+      .eq('telefone', o.telefone)
+  }
+}
+
 export function useOrcamentos() {
   const [itens, setItens] = useState<Orcamento[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -25,36 +49,10 @@ export function useOrcamentos() {
     primeiraCarga.current = false
   }, [])
 
-  /**
-   * Grava a decisão e desliga o agente para aquele lead.
-   *
-   * Aprovado  -> lead vira 'orcamento_enviado' (o PDF sai, agente fora)
-   * Rejeitado -> lead vira 'com_ramon' (ele assume a conversa na mão)
-   *
-   * O update em `orcamentos` é o gatilho: é a mudança de status que o
-   * Database Webhook do Supabase escuta para disparar o envio do PDF.
-   */
+  /** Grava a decisão (ver decidirOrcamento) e tira o cartão da lista */
   const decidir = useCallback(
     async (o: Orcamento, status: Extract<StatusOrcamento, 'aprovado' | 'rejeitado'>) => {
-      const { error } = await supabase
-        .from('orcamentos')
-        .update({ status, aprovado_em: new Date().toISOString() })
-        .eq('orcamento_id', o.orcamento_id)
-
-      if (error) throw new Error(error.message)
-
-      // Rejeitar não mexe na IA: o cliente pode ter outro orçamento em aberto.
-      // Para pausar a IA de um cliente, use o botão na tela de Conversas.
-      if (o.telefone && status === 'aprovado') {
-        await supabase
-          .from('leads')
-          .update({
-            status: 'orcamento_enviado',
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq('telefone', o.telefone)
-      }
-
+      await decidirOrcamento(o, status)
       setItens((atual) => atual.filter((x) => x.orcamento_id !== o.orcamento_id))
     },
     [],

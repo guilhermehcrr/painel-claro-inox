@@ -1,18 +1,21 @@
 import { useState } from 'react'
-import { ChevronDown, Package, Truck } from 'lucide-react'
+import { ChevronDown, Package, Pencil, Truck } from 'lucide-react'
 import { Card, Stat } from '@/components/ui/card'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { brl, desde } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { irPara } from '@/lib/rota'
 import type { Orcamento } from '@/lib/types'
 
 interface Props {
   orcamento: Orcamento
   onDecidir: (o: Orcamento, status: 'aprovado' | 'rejeitado') => Promise<void>
+  /** Admin vê o botão Editar */
+  ehAdmin?: boolean
 }
 
-export function OrcamentoCard({ orcamento: o, onDecidir }: Props) {
+export function OrcamentoCard({ orcamento: o, onDecidir, ehAdmin }: Props) {
   const [aberto, setAberto] = useState(false)
   const [ocupado, setOcupado] = useState<'aprovado' | 'rejeitado' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -66,6 +69,21 @@ export function OrcamentoCard({ orcamento: o, onDecidir }: Props) {
           {o.cep && ` · CEP ${o.cep}`}
         </div>
         <div className="mt-1 font-mono text-[11px] text-faint">{o.orcamento_id}</div>
+        {(o.editado_em || o.origem === 'painel') && (
+          <div className="mt-1.5 flex flex-wrap gap-x-2 text-[12px]">
+            {o.origem === 'painel' && (
+              <span className="rounded bg-indigo-tint px-1.5 py-px font-medium text-indigo">
+                Feito no painel{o.criado_por_nome ? ` por ${o.criado_por_nome}` : ''}
+              </span>
+            )}
+            {o.editado_em && (
+              <span className="rounded bg-palha-tint px-1.5 py-px font-medium text-palha">
+                Editado{o.editado_por_nome ? ` por ${o.editado_por_nome}` : ''} {desde(o.editado_em)}
+              </span>
+            )}
+            {o.resumo_ia?.total != null && <span className="text-muted">versão da IA: {brl(o.resumo_ia.total)}</span>}
+          </div>
+        )}
       </div>
 
       {(pecas.length > 0 || itensTexto.length > 0) && (
@@ -191,6 +209,12 @@ export function OrcamentoCard({ orcamento: o, onDecidir }: Props) {
         <Button variant="outline" className="flex-1" onClick={() => agir('rejeitado')}>
           Rejeitar
         </Button>
+        {ehAdmin && (
+          <Button variant="outline" className="flex-1" onClick={() => irPara('orcamento', o.id)}>
+            <Pencil className="h-4 w-4" strokeWidth={1.75} />
+            Editar
+          </Button>
+        )}
         <Button variant="approve" className="flex-1" onClick={() => agir('aprovado')}>
           Aprovar
         </Button>

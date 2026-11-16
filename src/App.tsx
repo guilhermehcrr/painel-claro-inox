@@ -12,6 +12,7 @@ import { usePedidos } from '@/hooks/usePedidos'
 import { Shell, type ItemMenu } from '@/components/layout/Shell'
 import { Inicio } from '@/components/inicio/Inicio'
 import { Orcamentos } from '@/components/orcamentos/Orcamentos'
+import { EditorOrcamento } from '@/components/orcamentos/EditorOrcamento'
 import { Producao } from '@/components/producao/Producao'
 import { PedidoPagina } from '@/components/producao/PedidoPagina'
 import { Calendario } from '@/components/calendario/Calendario'
@@ -74,9 +75,13 @@ function Painel({ sessao }: { sessao: Session }) {
             carregando={orcamentos.carregando}
             erro={orcamentos.erro}
             decidir={orcamentos.decidir}
+            ehAdmin={ehAdmin}
             pedidos={pedidos.pedidos}
           />
         )
+      case 'orcamento':
+        // Enquanto o perfil carrega, não mostra o aviso de "só administrador"
+        return carregandoPerfil ? null : <EditorOrcamento key={rota.id ?? 'novo'} id={rota.id} ehAdmin={ehAdmin} />
       case 'producao':
         return (
           <Producao

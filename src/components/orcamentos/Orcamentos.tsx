@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FileDown, Search } from 'lucide-react'
+import { FileDown, Plus, Search } from 'lucide-react'
 import type { Orcamento, Pedido, StatusOrcamento } from '@/lib/types'
 import { brl, desde, telefoneBonito } from '@/lib/format'
 import { useTodosOrcamentos } from '@/hooks/useTodosOrcamentos'
@@ -8,6 +8,8 @@ import { Abas, Carregando, Erro, Pagina, Vazio } from '@/components/ui/page'
 import { Selo } from '@/components/ui/selo'
 import { estiloCampo } from '@/components/ui/campo'
 import { cn } from '@/lib/utils'
+import { irPara } from '@/lib/rota'
+import { Button } from '@/components/ui/button'
 
 type Aba = 'aprovar' | 'todos'
 
@@ -24,6 +26,7 @@ interface Props {
   erro: string | null
   decidir: (o: Orcamento, status: 'aprovado' | 'rejeitado') => Promise<void>
   pedidos: Pedido[]
+  ehAdmin?: boolean
 }
 
 function Todos({ pedidos }: { pedidos: Pedido[] }) {
@@ -94,7 +97,11 @@ function Todos({ pedidos }: { pedidos: Pedido[] }) {
                   <tr key={o.id} className="block border-b border-hair px-4 py-3 last:border-b-0 md:table-row md:p-0">
                     <td className="block md:table-cell md:px-4 md:py-3">
                       <span className="block font-medium text-ink">{o.nome_cliente || 'Sem nome'}</span>
-                      <span className="block text-[13px] text-muted">{telefoneBonito(o.telefone)}</span>
+                      <span className="block text-[13px] text-muted">
+                        {telefoneBonito(o.telefone) || 'Sem telefone'}
+                        {o.origem === 'painel' && <span className="text-indigo"> · feito no painel</span>}
+                        {o.editado_em && <span className="text-palha"> · editado</span>}
+                      </span>
                     </td>
                     <td className="tnum hidden text-muted md:table-cell md:px-4 md:py-3">
                       {o.numero_proposta || '—'}
@@ -141,11 +148,22 @@ function Todos({ pedidos }: { pedidos: Pedido[] }) {
   )
 }
 
-export function Orcamentos({ pendentes, carregando, erro, decidir, pedidos }: Props) {
+export function Orcamentos({ pendentes, carregando, erro, decidir, pedidos, ehAdmin }: Props) {
   const [aba, setAba] = useState<Aba>('aprovar')
 
   return (
-    <Pagina titulo="Orçamentos" subtitulo="Aprove o que a IA calculou e acompanhe o que já saiu.">
+    <Pagina
+      titulo="Orçamentos"
+      subtitulo="Aprove o que a IA calculou e acompanhe o que já saiu."
+      acoes={
+        ehAdmin && (
+          <Button size="sm" onClick={() => irPara('orcamento', 'novo')}>
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Novo orçamento
+          </Button>
+        )
+      }
+    >
       <Abas
         className="mb-4"
         atual={aba}
@@ -163,7 +181,7 @@ export function Orcamentos({ pendentes, carregando, erro, decidir, pedidos }: Pr
             <Vazio titulo="Nenhum orçamento para aprovar">Quando a IA montar um orçamento, ele aparece aqui.</Vazio>
           )}
           {pendentes.map((o) => (
-            <OrcamentoCard key={o.orcamento_id} orcamento={o} onDecidir={decidir} />
+            <OrcamentoCard key={o.orcamento_id} orcamento={o} onDecidir={decidir} ehAdmin={ehAdmin} />
           ))}
         </div>
       ) : (
