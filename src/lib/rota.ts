@@ -1,18 +1,25 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Navegação pelo endereço (#/producao, #/pedido/12, #/orcamento/41, #/orcamento/novo). Assim o botão voltar do
- * celular funciona, e dá para recarregar a página sem perder onde estava.
+ * Navegação pelo endereço (#/producao, #/pedido/12, #/orcamento/41, #/orcamento/novo, #/estoque/movimentacoes,
+ * #/produto/3). Assim o botão voltar do celular funciona, e dá para recarregar a página sem perder onde estava.
  */
 export type Pagina =
-  | 'inicio' | 'conversas' | 'orcamentos' | 'orcamento' | 'producao' | 'pedido' | 'calendario' | 'caixa' | 'usuarios'
+  | 'inicio' | 'conversas' | 'orcamentos' | 'orcamento' | 'producao' | 'pedido' | 'calendario'
+  | 'estoque' | 'produtos' | 'produto' | 'caixa' | 'usuarios'
 
 export interface Rota {
   pagina: Pagina
   id: string | null
 }
 
-const PAGINAS: Pagina[] = ['inicio', 'conversas', 'orcamentos', 'orcamento', 'producao', 'pedido', 'calendario', 'caixa', 'usuarios']
+const PAGINAS: Pagina[] = [
+  'inicio', 'conversas', 'orcamentos', 'orcamento', 'producao', 'pedido', 'calendario',
+  'estoque', 'produtos', 'produto', 'caixa', 'usuarios',
+]
+
+/** Página de detalhe -> item do menu que fica aceso */
+export const PAI: Partial<Record<Pagina, Pagina>> = { pedido: 'producao', orcamento: 'orcamentos', produto: 'produtos' }
 
 function ler(): Rota {
   const [p, id] = window.location.hash.replace(/^#\/?/, '').split('/')

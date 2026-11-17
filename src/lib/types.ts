@@ -268,3 +268,87 @@ export interface AReceber {
   ultimo_pagamento: string | null
   criado_em: string
 }
+
+// ---- Estoque e produtos ----------------------------------------------------------
+
+export type TipoInsumo = 'tubo' | 'barra' | 'chapa' | 'perfil' | 'peca' | 'outro'
+/** m = metro linear, m2 = metro quadrado */
+export type UnidadeInsumo = 'm' | 'm2' | 'kg' | 'un'
+
+export interface Insumo {
+  id: number
+  /** Código no motor de orçamento (T2030, CH14...) */
+  codigo: string | null
+  nome: string
+  tipo: TipoInsumo
+  unidade: UnidadeInsumo
+  /** Quanto vem em cada barra ou chapa comprada, na unidade do insumo (6 = barra de 6 m) */
+  por_compra: number | null
+  /** R$ por unidade (por metro, por un...) */
+  custo: number
+  saldo: number
+  minimo: number
+  ativo: boolean
+  observacao: string | null
+  /** Última vez que alguém contou este insumo */
+  contado_em: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+/** entrada = compra; ajuste = contagem; saida/estorno = baixa pelos pedidos (próximo ciclo) */
+export type TipoMovimento = 'entrada' | 'ajuste' | 'saida' | 'estorno'
+
+export interface Movimento {
+  id: number
+  insumo_id: number
+  tipo: TipoMovimento
+  /** Com sinal: + entrou, − saiu */
+  quantidade: number
+  saldo_antes: number
+  saldo_depois: number
+  custo_unitario: number | null
+  fornecedor: string | null
+  nota: string | null
+  justificativa: string | null
+  lote: string | null
+  feito_por_nome: string | null
+  feito_em: string
+  insumos?: Pick<Insumo, 'nome' | 'unidade' | 'por_compra' | 'tipo' | 'codigo'> | null
+}
+
+export interface Produto {
+  id: number
+  nome: string
+  categoria: string
+  descricao: string | null
+  /** Código no motor de orçamento, quando não tem variações */
+  codigo: string | null
+  ativo: boolean
+  ordem: number
+  atualizado_em: string
+  atualizado_por_nome: string | null
+}
+
+export interface Variacao {
+  id: number
+  produto_id: number
+  nome: string
+  codigo: string | null
+  ordem: number
+}
+
+export interface LinhaTecnica {
+  id: number
+  produto_id: number
+  insumo_id: number
+  /** Parte da peça: Torres, Quadro, Ripas... */
+  descricao: string
+  /** Em mm para insumo em metros, mm² para m², kg ou unidades */
+  formula: string
+  ordem: number
+  /** Vazio = vale para todas as variações */
+  variacoes: number[]
+  atualizado_em: string
+  atualizado_por_nome: string | null
+}

@@ -1,5 +1,5 @@
-import { CalendarX2, ChevronRight, Clock4, FileText, MessagesSquare, UserRound } from 'lucide-react'
-import type { Orcamento, Pedido } from '@/lib/types'
+import { CalendarX2, ChevronRight, Clock4, FileText, MessagesSquare, PackageX, UserRound } from 'lucide-react'
+import type { Insumo, Orcamento, Pedido } from '@/lib/types'
 import { ESTAGIOS, ativo } from '@/lib/estagios'
 import { dataCurta, diasEntre, hojeISO, nomeMes, primeiroDiaMes, prazoRelativo, ultimoDiaMes } from '@/lib/datas'
 import { brl, desde } from '@/lib/format'
@@ -25,6 +25,8 @@ interface Props {
   /** Conversas na fila "Pendência com Ramon" */
   conversasComRamon?: number
   pedidos: Pedido[]
+  /** Insumos que chegaram no estoque mínimo (ou ficaram negativos) */
+  estoqueAlertas?: Insumo[]
 }
 
 function Pendencia({
@@ -164,7 +166,7 @@ function abrirFila(fila: string) {
   }
 }
 
-export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, conversasComRamon = 0, pedidos }: Props) {
+export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, conversasComRamon = 0, pedidos, estoqueAlertas = [] }: Props) {
   const hoje = hojeISO()
   const naOficina = pedidos.filter((p) => ativo(p.estagio))
   const atrasados = naOficina.filter((p) => p.data_entrega && p.data_entrega < hoje)
@@ -219,6 +221,17 @@ export function Inicio({ nome, ehAdmin, orcamentosPendentes, conversasNaoLidas, 
         qtd={atrasados.length}
         texto={atrasados.length === 1 ? 'pedido passou da data de entrega' : 'pedidos passaram da data de entrega'}
         detalhe={atrasados.map((p) => p.numero).join(', ')}
+      />
+    ),
+    estoqueAlertas.length > 0 && (
+      <Pendencia
+        key="estoque"
+        href="#/estoque"
+        icone={PackageX}
+        tom="palha"
+        qtd={estoqueAlertas.length}
+        texto={estoqueAlertas.length === 1 ? 'insumo para repor no estoque' : 'insumos para repor no estoque'}
+        detalhe={estoqueAlertas.map((i) => i.nome).join(', ')}
       />
     ),
     semData.length > 0 && (

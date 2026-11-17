@@ -38,7 +38,7 @@ export function useAoVivo(tabelas: string[], recarregar: () => void, filtro?: st
 export function mensagemErro(e: unknown): string {
   const m = e instanceof Error ? e.message : typeof e === 'string' ? e : 'Falhou. Tente de novo.'
   if (/does not exist|schema cache|bucket not found/i.test(m)) {
-    return 'Falta rodar um SQL no Supabase. Confira se rodou todos, até o da etapa 8 (supabase-etapa8-funil-anexos.sql).'
+    return 'Falta rodar um SQL no Supabase. Confira se rodou todos, até o da etapa 10 (supabase-etapa10-estoque.sql).'
   }
   if (/permission denied|row-level security/i.test(m)) return 'Seu usuário não tem permissão para isso.'
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com o servidor. Confira a internet.'

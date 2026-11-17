@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { LogOut, Menu, X, type LucideIcon } from 'lucide-react'
-import type { Pagina } from '@/lib/rota'
+import { PAI, type Pagina } from '@/lib/rota'
 import { cn } from '@/lib/utils'
 
 export interface ItemMenu {
@@ -47,7 +47,7 @@ function Itens({ itens, atual, aoClicar }: { itens: ItemMenu[]; atual: Pagina; a
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Menu">
       {itens.map((i) => {
-        const ativo = atual === i.id || (atual === 'pedido' && i.id === 'producao') || (atual === 'orcamento' && i.id === 'orcamentos')
+        const ativo = atual === i.id || PAI[atual] === i.id
         const Icone = i.icone
         return (
           <a
@@ -106,9 +106,7 @@ function Usuario({ nome, papel, onSair }: { nome: string; papel: string; onSair:
 
 export function Shell({ atual, itens, nome, papel, onSair, cheia, children }: Props) {
   const [aberto, setAberto] = React.useState(false)
-  const atualItem = itens.find(
-    (i) => i.id === atual || (atual === 'pedido' && i.id === 'producao') || (atual === 'orcamento' && i.id === 'orcamentos'),
-  )
+  const atualItem = itens.find((i) => i.id === atual || PAI[atual] === i.id)
   const pendencias = itens.reduce((s, i) => s + (i.qtd ?? 0), 0)
 
   React.useEffect(() => setAberto(false), [atual])

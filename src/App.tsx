@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { CalendarDays, Factory, FileText, LayoutDashboard, MessagesSquare, Users, Wallet } from 'lucide-react'
+import { CalendarDays, Factory, FileText, Layers, LayoutDashboard, MessagesSquare, Package, Users, Wallet } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { irPara, useRota } from '@/lib/rota'
 import { ativo } from '@/lib/estagios'
@@ -9,6 +9,9 @@ import { usePerfil } from '@/hooks/usePerfil'
 import { useOrcamentos } from '@/hooks/useOrcamentos'
 import { useConversas } from '@/hooks/useConversas'
 import { usePedidos } from '@/hooks/usePedidos'
+import { useEstoque } from '@/hooks/useEstoque'
+import { useProdutos } from '@/hooks/useProdutos'
+import type { Insumo } from '@/lib/types'
 import { Shell, type ItemMenu } from '@/components/layout/Shell'
 import { Inicio } from '@/components/inicio/Inicio'
 import { Orcamentos } from '@/components/orcamentos/Orcamentos'
@@ -17,11 +20,20 @@ import { Producao } from '@/components/producao/Producao'
 import { PedidoPagina } from '@/components/producao/PedidoPagina'
 import { Calendario } from '@/components/calendario/Calendario'
 import { Caixa } from '@/components/caixa/Caixa'
+import { Estoque } from '@/components/estoque/Estoque'
+import { Produtos } from '@/components/produtos/Produtos'
+import { ProdutoPagina } from '@/components/produtos/ProdutoPagina'
 import { Conversas } from '@/components/conversas/Conversas'
 import { Usuarios } from '@/components/Usuarios'
 import { Pagina } from '@/components/ui/page'
 import { Login } from '@/components/Login'
 import { DefinirSenha, EsqueciSenha } from '@/components/Senha'
+
+/** Lista e página do produto dividem os mesmos dados (carregados ao entrar em Produtos) */
+function TelasProdutos({ id, insumos, ehAdmin }: { id: string | null; insumos: Insumo[]; ehAdmin: boolean }) {
+  const dados = useProdutos()
+  return id ? <ProdutoPagina id={id} dados={dados} insumos={insumos} ehAdmin={ehAdmin} /> : <Produtos dados={dados} ehAdmin={ehAdmin} />
+}
 
 function Painel({ sessao }: { sessao: Session }) {
   const { perfil, ehAdmin, carregando: carregandoPerfil } = usePerfil(sessao.user.id)
@@ -29,6 +41,7 @@ function Painel({ sessao }: { sessao: Session }) {
   const orcamentos = useOrcamentos()
   const conversas = useConversas()
   const pedidos = usePedidos()
+  const estoque = useEstoque()
 
   // Telas só de admin: quem não é admin volta para o início
   const soAdmin = rota.pagina === 'caixa' || rota.pagina === 'usuarios'
@@ -45,6 +58,8 @@ function Painel({ sessao }: { sessao: Session }) {
     { id: 'orcamentos', nome: 'Orçamentos', icone: FileText, qtd: orcamentos.itens.length },
     { id: 'producao', nome: 'Produção', icone: Factory, qtd: atrasados, tom: 'warn' },
     { id: 'calendario', nome: 'Calendário', icone: CalendarDays },
+    { id: 'estoque', nome: 'Estoque', icone: Package, qtd: estoque.alertas.length, tom: 'warn' },
+    { id: 'produtos', nome: 'Produtos', icone: Layers },
     ...(ehAdmin
       ? ([
           { id: 'caixa', nome: 'Caixa', icone: Wallet },
@@ -109,6 +124,13 @@ function Painel({ sessao }: { sessao: Session }) {
         )
       case 'calendario':
         return <Calendario pedidos={pedidos.pedidos} carregando={pedidos.carregando} erro={pedidos.erro} />
+      case 'estoque':
+        return carregandoPerfil ? null : <Estoque estoque={estoque} ehAdmin={ehAdmin} aba={rota.id} />
+      case 'produtos':
+      case 'produto':
+        return carregandoPerfil ? null : (
+          <TelasProdutos id={rota.pagina === 'produto' ? rota.id : null} insumos={estoque.insumos} ehAdmin={ehAdmin} />
+        )
       case 'caixa':
         return ehAdmin ? <Caixa pedidos={pedidos.pedidos} todosPedidos={pedidos.todos} acao={rota.id} /> : null
       case 'usuarios':
@@ -126,6 +148,7 @@ function Painel({ sessao }: { sessao: Session }) {
             conversasNaoLidas={conversas.naoLidas}
             conversasComRamon={conversas.comRamon}
             pedidos={pedidos.pedidos}
+            estoqueAlertas={estoque.alertas}
           />
         )
     }
